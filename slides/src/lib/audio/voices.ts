@@ -2,6 +2,12 @@ import * as Tone from 'tone';
 import { midiToHz } from '../axis';
 
 /** Simple "piano": additive harmonics with 1/n-ish amplitudes, struck envelope. */
+/** The Pärt recording is mastered very quietly (peaks at −26.6 dBFS, ~−45 dBFS average);
+ *  +24 dB brings its peaks to about −2.6 dBFS. */
+const TRACK_GAIN = 16;
+/** −12 dB: the generator sits ~8 dB below the (normalised) intro recording. */
+const GEN_LEVEL = 0.25;
+
 const PIANO_PARTIALS = [1, 0.55, 0.35, 0.22, 0.15, 0.1, 0.07, 0.05, 0.035];
 
 export const CHORDS: Record<string, number[]> = {
@@ -43,27 +49,31 @@ export class SoundVoices {
   activeChord: string | null = null;
   activeNoise: 'white' | 'pink' | null = null;
 
+  /** Generator level. The intro recording (used to set speaker gain) plays ~8 dB above this. */
+  private gen: Tone.Gain;
+
   constructor(private out: Tone.ToneAudioNode) {
+    this.gen = new Tone.Gain(GEN_LEVEL).connect(out);
     this.glide = this.makeHeld(440);
     this.piano = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'custom', partials: PIANO_PARTIALS },
       envelope: { attack: 0.004, decay: 2.4, sustain: 0, release: 0.5 },
       volume: -9,
-    }).connect(out);
+    }).connect(this.gen);
     this.piano.maxPolyphony = 48;
     this.chordSynth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'custom', partials: [1, 0.45, 0.25, 0.12, 0.06] },
       envelope: { attack: 0.06, decay: 0.2, sustain: 0.9, release: 0.6 },
       volume: -15,
-    }).connect(out);
+    }).connect(this.gen);
     this.noises = {
-      white: new Tone.Noise({ type: 'white', volume: -16 }).connect(out),
-      pink: new Tone.Noise({ type: 'pink', volume: -12 }).connect(out),
+      white: new Tone.Noise({ type: 'white', volume: -16 }).connect(this.gen),
+      pink: new Tone.Noise({ type: 'pink', volume: -12 }).connect(this.gen),
     };
   }
 
   private makeHeld(f: number): Held {
-    const gain = new Tone.Gain(0).connect(this.out);
+    const gain = new Tone.Gain(0).connect(this.gen);
     const osc = new Tone.Oscillator(f, 'sine').connect(gain).start();
     return { osc, gain };
   }
@@ -178,7 +188,7 @@ export class SoundVoices {
     const t = Tone.now();
     g.cancelScheduledValues(t);
     g.setValueAtTime(g.value, t);
-    g.linearRampToValueAtTime(1, t + 2.5);
+    g.linearRampToValueAtTime(TRACK_GAIN, t + 2.5);
     try {
       await this.track.play();
       return true;

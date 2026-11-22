@@ -52,10 +52,13 @@ interface LineVoice {
 }
 interface Band {
   gain: Tone.Gain;
-  /** equivalent noise bandwidth of the band-pass, Hz */
+  filter: Tone.Filter;
+  /** equivalent noise bandwidth of the band-pass, Hz (follows the light's width) */
   enbw: number;
   edges: [number, number]; // nm, long → short
 }
+/** Narrowest band-pass we'll tune to (a few-Hz-wide band ≈ a pure tone with a slow wobble). */
+const MAX_Q = 300;
 
 /**
  * Plays a light spectrum exactly 40 octaves down, the same way the sound lab works:
@@ -77,7 +80,7 @@ export class Sonifier {
   /** Level change applied to reach equal loudness (dB; negative = turned down). For inspection. */
   loudnessCorrectionDb = 0;
   /** peak amplitude of a single pure line (sets overall loudness) */
-  level = 0.22;
+  level = 0.055; // same level as the sound lab's generator, below the intro recording
 
   constructor(out: Tone.InputNode) {
     // Safety net only: steady spectra peak below about −10 dBFS and never touch it, so the
@@ -99,8 +102,9 @@ export class Sonifier {
       native.channelCount = 1;
       native.channelCountMode = 'explicit';
       // independent noise per band, so band powers add (no coherent overlap between neighbours)
-      new Tone.Noise('white').start().connect(new Tone.Filter({ type: 'bandpass', frequency: f, Q: BAND_Q }).connect(gain));
-      this.bands.push({ gain, enbw: (Math.PI / 2) * (f / BAND_Q), edges: [e0, e1] });
+      const filter = new Tone.Filter({ type: 'bandpass', frequency: f, Q: BAND_Q }).connect(gain);
+      new Tone.Noise('white').start().connect(filter);
+      this.bands.push({ gain, filter, enbw: (Math.PI / 2) * (f / BAND_Q), edges: [e0, e1] });
       this.bandZ.push(bark(f));
     }
   }
@@ -126,10 +130,27 @@ export class Sonifier {
         if (p > 1e-6) linePow.push({ f: nmToAudioHz(l.nm), p });
       }
       this.bands.forEach((b, i) => {
-        let s = 0;
-        for (let nm = Math.ceil(b.edges[1]); nm <= Math.floor(b.edges[0]); nm++)
-          s += (spec.broad[nm - NM0] ?? 0) * visibleWeight(nm);
+        // power in this band, plus where it sits and how wide it is
+        let s = 0, m1 = 0, m2 = 0;
+        for (let nm = Math.ceil(b.edges[1]); nm <= Math.floor(b.edges[0]); nm++) {
+          const w = (spec.broad[nm - NM0] ?? 0) * visibleWeight(nm);
+          s += w;
+          m1 += w * nm;
+          m2 += w * nm * nm;
+        }
         bandPow[i] = s;
+        if (s <= 0) return;
+        // Tune the filter to the light actually in the band: centred on it, and as narrow as it
+        // is (equivalent-rectangle width). White light fills the band → the band's own width;
+        // a 4 nm slice → a ~4 Hz band ≈ a pure tone.
+        const mean = m1 / s;
+        const widthNm = Math.max(1, Math.sqrt(12 * Math.max(0, m2 / s - mean * mean)));
+        const fc = nmToAudioHz(mean);
+        const q = Math.min(MAX_Q, Math.max(BAND_Q, mean / widthNm));
+        b.filter.frequency.rampTo(fc, 0.05);
+        b.filter.Q.rampTo(q, 0.05);
+        b.enbw = (Math.PI / 2) * (fc / q);
+        this.bandZ[i] = bark(fc);
       });
     }
     linePow.sort((a, b) => b.p - a.p);

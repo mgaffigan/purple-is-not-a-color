@@ -178,9 +178,9 @@ function solve(A: number[][], b: number[]): number[] {
   return M.map((r, i) => r[n] / r[i]);
 }
 
-/** Purple: the lowest and highest colours we see, together. 700/400 = 7:4 (a harmonic
- *  seventh). The 0.45 violet:red ratio is the most vivid on screen. */
-export const PURPLE = () => atLuma(Spectrum.lines([700, 1], [400, 0.45]), 0.12);
+/** Purple: exactly the Red and Violet buttons together (650 + 410 nm, each at its button's
+ *  power), so its bins are exactly Red's plus Violet's. 650/410 ≈ 8:5, a minor sixth. */
+export const PURPLE = () => Spectrum.lines([650, 1], [410, 1]);
 /** A polychromatic red. Its pure twin is found with dominantNm(). */
 export const POLY_RED = () => Spectrum.lines([620, 0.45], [690, 1]);
 
