@@ -1,0 +1,71 @@
+---
+import { PAINTS, ROYGBIV, SOURCES } from '../lib/light/spectra';
+const sources = Object.keys(SOURCES);
+---
+
+<div class="lab light" data-scene="light" data-stage="A" data-build="0">
+  <div class="col in">
+    <div class="top-row">
+      <div class="swatch-wrap itis-wrap">
+        <canvas class="itis"></canvas>
+        <div class="cap">what it is</div>
+      </div>
+      <div class="swatch-wrap see-wrap">
+        <div class="swatch"></div>
+        <div class="cap">what we see</div>
+      </div>
+    </div>
+    <div class="panel wf-wrap">
+      <canvas class="wf"></canvas>
+      <div class="cap">power at frequency ↓ time</div>
+    </div>
+    <canvas class="strip"></canvas>
+    <div class="chips gen">
+      <button data-act="stop" class="stop">■</button>
+      <span class="g g-colors">
+        {ROYGBIV.map((c) => <button data-nm={c.nm} class="color-chip">{c.name}</button>)}
+      </span>
+      <span class="g g-sources">
+        {sources.map((s) => <button data-source={s}>{s}</button>)}
+      </span>
+      <span class="g g-mix">
+        <button data-mix="poly">Mixed red</button>
+        <button data-mix="twin">Pure red</button>
+        <button data-mix="purple" class="purple-chip">Red + Violet</button>
+      </span>
+      <button class="tone-ind" data-act="tones" title="Mute / unmute colour tones (T)">♪</button>
+    </div>
+  </div>
+
+  <div class="flow-arrow">→</div>
+
+  <div class="col out">
+    <div class="swatch-wrap">
+      <div class="swatch"></div>
+      <div class="cap">what we see</div>
+    </div>
+    <div class="panel wf-wrap">
+      <canvas class="wf"></canvas>
+      <canvas class="bins"></canvas>
+      <canvas class="bins-labels"></canvas>
+      <div class="cap out-cap"><span class="c-filter">after the filter</span><span class="c-bins">what the eye sends the brain</span></div>
+    </div>
+    <canvas class="filter"></canvas>
+    <div class="chips flt">
+      <button data-filter="none">No filter</button>
+      <button data-filter="bandpass">Band-pass</button>
+      <button data-filter="red">Red gel</button>
+      <button data-filter="green">Green gel</button>
+      <button data-filter="blue">Blue gel</button>
+      <label class="width">width <input type="range" min="0" max="1000" value="500" /><output></output></label>
+      <span class="break"></span>
+      {PAINTS.map((p, i) => <button data-paint={i} class="color-chip">{p.name}</button>)}
+    </div>
+  </div>
+
+  <div class="cri">
+    <div class="cri-grid"></div>
+  </div>
+
+  <div class="cb-ind">colour-blind view</div>
+</div>

@@ -1,0 +1,663 @@
+:root {
+  --bg: #07070b;
+  --panel: #000;
+  --line: rgba(255, 255, 255, 0.1);
+  --text: #eeeef2;
+  --muted: rgba(255, 255, 255, 0.6);
+  --accent: #ffd166;
+  --red: #dd0031;
+  --violet: #5a1fc4;
+  --ease: cubic-bezier(0.6, 0, 0.2, 1);
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* reveal.css loads after this file and sets a white viewport; win explicitly. */
+html,
+html body,
+html .reveal-viewport {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  margin: 0;
+}
+
+/* ---------- reveal overrides ---------- */
+.reveal .slides {
+  text-align: left;
+}
+/* Sections are thin step markers; let pointer events reach the labs beneath. */
+.reveal .slides > section,
+.reveal .slides > section.present {
+  pointer-events: none !important;
+  height: 100%;
+  padding: 0;
+  z-index: 20;
+}
+.reveal .progress {
+  color: var(--accent);
+  height: 4px;
+  opacity: 0.6;
+}
+.reveal .fragment[data-build] {
+  display: none;
+}
+
+/* ---------- arm badge ---------- */
+.arm-badge {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 100;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 209, 102, 0.15);
+  border: 1px solid rgba(255, 209, 102, 0.5);
+  color: var(--accent);
+  font: 600 13px var(--font);
+  pointer-events: none;
+  transition: opacity 0.6s;
+}
+.arm-badge.armed,
+.receiver .arm-badge {
+  opacity: 0;
+}
+
+/* ---------- labs (persistent scenes) ---------- */
+.labs {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 5;
+}
+.lab {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.6s, visibility 0.6s;
+  pointer-events: none;
+}
+.lab.active {
+  visibility: visible;
+  opacity: 1;
+}
+.lab.active :is(canvas, button, input, label) {
+  pointer-events: auto;
+}
+.lab canvas {
+  display: block;
+  width: 100%;
+}
+.col {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition:
+    left 0.9s var(--ease),
+    top 0.9s var(--ease),
+    width 0.9s var(--ease),
+    height 0.9s var(--ease),
+    opacity 0.6s;
+}
+.col > * {
+  flex: none;
+  transition:
+    height 0.9s var(--ease),
+    opacity 0.6s;
+  overflow: hidden;
+}
+.col .wf-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.panel {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.panel canvas {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+.cap {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  font: 600 14px var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+.flow-arrow {
+  position: absolute;
+  left: 920px;
+  width: 80px;
+  top: 380px;
+  text-align: center;
+  font-size: 64px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.6s;
+}
+
+/* ---------- chips ---------- */
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-content: flex-start;
+}
+.chips .g {
+  display: contents;
+}
+.chips .sep {
+  width: 14px;
+}
+.chips button {
+  font: 500 18px var(--font);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  white-space: nowrap;
+}
+.chips button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.chips button.on {
+  background: var(--accent);
+  color: #111;
+  border-color: var(--accent);
+}
+.chips button.stop {
+  padding: 8px 13px;
+}
+.color-chip::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--chip, #fff);
+  margin-right: 8px;
+  vertical-align: -1px;
+}
+.purple-chip {
+  background: linear-gradient(90deg, rgba(221, 0, 49, 0.35), rgba(90, 31, 196, 0.45)) !important;
+}
+.purple-chip.on {
+  background: linear-gradient(90deg, #dd0031, #6a2bd0) !important;
+  color: #fff !important;
+}
+.chips label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 500 16px var(--font);
+  color: var(--muted);
+}
+.chips input[type='range'] {
+  width: 200px;
+  accent-color: var(--accent);
+}
+.chips output {
+  min-width: 64px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.chips button:is(.mic-ind, .tone-ind) {
+  font-size: 22px;
+  padding: 2px 12px;
+}
+.mic-ind,
+.tone-ind {
+  margin-left: auto;
+  font-size: 22px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  transition: all 0.3s;
+}
+.mic-ind.live {
+  background: rgba(255, 60, 80, 0.25);
+  box-shadow: 0 0 12px rgba(255, 60, 80, 0.6);
+}
+.mic-ind.off,
+.mic-ind.denied,
+.tone-ind.muted {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+/* =====================================================================
+   SOUND LAB
+   ===================================================================== */
+.sound .col.in {
+  left: 40px;
+  top: 40px;
+  width: 1840px;
+  height: 1000px;
+}
+.sound .scope-wrap {
+  height: 110px;
+}
+.sound .strip {
+  height: 64px;
+  border-radius: 6px;
+}
+.sound .piano {
+  height: 110px;
+}
+.sound .chips {
+  height: 52px;
+}
+.meter {
+  position: absolute;
+  right: 12px;
+  top: 40px;
+  bottom: 12px;
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.meter .bar {
+  flex: 1;
+  width: 12px;
+  border-radius: 6px;
+  background: linear-gradient(to top, #2bd576, #ffd166 70%, #ff5a5a);
+  transform-origin: bottom;
+  transform: scaleY(0);
+  transition: transform 0.08s linear;
+}
+.meter span {
+  font: 600 13px var(--font);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* title: the waterfall is the whole background */
+.sound[data-stage='title'] .col.in {
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  gap: 0;
+}
+.sound[data-stage='title'] .col.in > :not(.wf-wrap) {
+  height: 0;
+  opacity: 0;
+}
+.sound[data-stage='title'] .wf-wrap {
+  border: none;
+  border-radius: 0;
+}
+.sound[data-stage='title'] :is(.cap, .meter) {
+  opacity: 0;
+}
+.sound:not([data-stage='A']) .scope-wrap {
+  height: 0;
+  opacity: 0;
+}
+
+.title-card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: radial-gradient(ellipse 50% 40% at 50% 50%, rgba(0, 0, 0, 0.7), transparent);
+  opacity: 0;
+  transition: opacity 1s;
+  pointer-events: none;
+}
+.sound[data-stage='title'] .title-card {
+  opacity: 1;
+}
+.title-card h1 {
+  margin: 0;
+  font: 800 132px/1 var(--font);
+  letter-spacing: -0.02em;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.9);
+}
+.title-card .track-toggle {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 500 20px var(--font);
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 10px 22px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.title-card .track-toggle:hover {
+  color: var(--text);
+}
+.title-card .track-toggle .icon {
+  display: inline-block;
+  width: 1.2em;
+}
+/* only on the title — otherwise the invisible button would catch clicks */
+.sound:not([data-stage='title']) .track-toggle {
+  display: none;
+}
+.title-card .sub {
+  margin: 28px 0 0;
+  font: 400 36px var(--font);
+  color: var(--muted);
+  display: none;
+}
+.sound[data-stage='title'] .sub.open {
+  display: block;
+}
+
+/* subtractive layout */
+.sound .col.out {
+  left: 1000px;
+  top: 40px;
+  width: 880px;
+  height: 1000px;
+  opacity: 0;
+}
+.sound .col.out .eq {
+  height: 182px;
+  border-radius: 6px;
+}
+.sound .col.out .chips {
+  height: 52px;
+}
+.sound[data-stage='B'] .col.in {
+  width: 880px;
+}
+.sound[data-stage='B'] .col.out,
+.sound[data-stage='B'] .flow-arrow {
+  opacity: 1;
+}
+.sound:not([data-stage='B']) .col.out * {
+  pointer-events: none !important;
+}
+.sound .eqp button {
+  font-size: 15px;
+  padding: 7px 11px;
+}
+.sound .eqp .width {
+  display: none;
+}
+.sound.narrow-on .eqp .width {
+  display: flex;
+}
+.sound .eqp input[type='range'] {
+  width: 110px;
+}
+.sound[data-stage='B'] .gen button[data-chord] {
+  font-size: 15px;
+  padding: 7px 11px;
+}
+.sound[data-stage='B'] .gen button[data-noise] {
+  font-size: 15px;
+  padding: 7px 11px;
+}
+
+/* =====================================================================
+   WAVELETS
+   ===================================================================== */
+.waves .wibbly {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  margin: 0;
+  font: italic 600 76px var(--font);
+  color: #cfe9ff;
+}
+.waves .wibbly em {
+  color: var(--accent);
+}
+.waves .who {
+  position: absolute;
+  top: 160px;
+  right: 260px;
+  font: 400 26px var(--font);
+  color: var(--muted);
+}
+.waves .wave-panel {
+  position: absolute;
+  left: 40px;
+  top: 220px;
+  width: 1840px;
+  height: 820px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #02081c;
+}
+.waves .wave-panel canvas {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+.waves .rings {
+  pointer-events: none !important;
+}
+
+/* =====================================================================
+   LIGHT LAB
+   ===================================================================== */
+.light .col.in {
+  left: 40px;
+  top: 40px;
+  width: 1840px;
+  height: 1000px;
+}
+.light .col.out {
+  left: 1000px;
+  top: 40px;
+  width: 880px;
+  height: 1000px;
+  opacity: 0;
+}
+.light .top-row {
+  display: flex;
+  gap: 8px;
+  height: 120px;
+}
+.light .top-row .itis-wrap {
+  flex: 1;
+}
+.light .top-row .see-wrap {
+  width: 320px;
+}
+/* side by side, the right column is "what we see"; the left is only "what it is" */
+.light:is([data-stage='B'], [data-stage='C'], [data-stage='purple']) .see-wrap {
+  display: none;
+}
+.light .itis {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+.light .swatch-wrap {
+  position: relative;
+  height: 120px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #000;
+}
+.light .swatch {
+  position: absolute;
+  inset: 0;
+  transition: background 0.3s;
+}
+.light .swatch-wrap .cap {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.55);
+  padding: 4px 10px;
+  border-radius: 999px;
+  top: 8px;
+  left: 10px;
+}
+.light .strip {
+  height: 72px;
+  border-radius: 6px;
+}
+.light .col.in .chips {
+  height: 104px;
+}
+.light .chips button {
+  font-size: 16px;
+  padding: 7px 13px;
+}
+.light .col.out .filter {
+  height: 72px;
+  border-radius: 6px;
+}
+.light .col.out .chips {
+  height: 104px;
+}
+.chips .break {
+  flex-basis: 100%;
+  height: 0;
+}
+.light :is(.bins, .bins-labels) {
+  opacity: 0;
+  transition: opacity 0.6s;
+}
+.light .bins-labels {
+  pointer-events: none !important;
+}
+.light .c-bins {
+  display: none;
+}
+/* filter row: band-pass width slider only when band-pass is selected */
+.light .flt .width {
+  display: none;
+}
+.light.bandpass-on .flt .width {
+  display: flex;
+}
+.light .flt input[type='range'] {
+  width: 110px;
+}
+.light .g-mix {
+  display: none;
+}
+.light:is([data-stage='C'], [data-stage='purple']) .g-mix {
+  display: contents;
+}
+
+/* side-by-side stages */
+.light:is([data-stage='B'], [data-stage='C'], [data-stage='purple'], [data-stage='cri']) .col.in {
+  width: 880px;
+}
+.light:is([data-stage='B'], [data-stage='C'], [data-stage='purple']) :is(.col.out, .flow-arrow) {
+  opacity: 1;
+}
+.light:not([data-stage='B']):not([data-stage='C']):not([data-stage='purple']) .col.out * {
+  pointer-events: none !important;
+}
+/* bins replace the output waterfall */
+.light:is([data-stage='C'], [data-stage='purple']) .col.out :is(.bins, .bins-labels) {
+  opacity: 1;
+}
+.light:is([data-stage='C'], [data-stage='purple']) .col.out .c-bins {
+  display: inline;
+}
+.light:is([data-stage='C'], [data-stage='purple']) .col.out .bins {
+  display: block;
+  background: #000;
+}
+.light:is([data-stage='C'], [data-stage='purple']) .c-filter {
+  display: none;
+}
+.light[data-stage='purple'] .col.out :is(.filter, .chips) {
+  visibility: hidden;
+}
+
+/* colour rendering */
+.light .cri {
+  position: absolute;
+  left: 1000px;
+  top: 40px;
+  width: 880px;
+  height: 1000px;
+  opacity: 0;
+  transition: opacity 0.6s;
+}
+.light[data-stage='cri'] .cri {
+  opacity: 1;
+}
+.cri-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  height: 100%;
+  align-content: center;
+}
+.cri-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  font: 500 22px var(--font);
+  color: var(--muted);
+}
+.cri-cell .patch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 20px;
+  transition: background 0.5s;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.light .cb-ind {
+  position: absolute;
+  top: 4px;
+  right: 40px;
+  font: 600 14px var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0;
+}
+.light.cb .cb-ind {
+  opacity: 1;
+}
+
+/* ---------- section overlays ---------- */
+.reveal .headline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 330px;
+  text-align: center;
+  font: 800 120px/1.1 var(--font);
+  text-shadow: 0 6px 60px #000;
+  color: #fff;
+}
+.reveal .headline em {
+  font-style: normal;
+  background: linear-gradient(90deg, var(--red), #a020c0, var(--violet));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

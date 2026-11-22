@@ -1,0 +1,55 @@
+---
+import { CHORDS } from '../lib/audio/voices';
+const chords = Object.keys(CHORDS);
+---
+
+<div class="lab sound" data-scene="sound" data-stage="title" data-build="0">
+  <div class="col in">
+    <div class="panel scope-wrap">
+      <canvas class="scope"></canvas>
+      <div class="cap">pressure ↕ &nbsp;over time →</div>
+    </div>
+    <div class="panel wf-wrap">
+      <canvas class="wf"></canvas>
+      <div class="meter" title="total power"><div class="bar"></div><span>dB</span></div>
+      <div class="cap">power at frequency ↓ time</div>
+    </div>
+    <canvas class="strip"></canvas>
+    <canvas class="piano"></canvas>
+    <div class="chips gen">
+      <button data-act="stop" class="stop">■</button>
+      {chords.map((c) => <button data-chord={c}>{c}</button>)}
+      <span class="sep"></span>
+      <button data-noise="white">White noise</button>
+      <button data-noise="pink">Pink noise</button>
+      <button class="mic-ind" data-act="mic" title="Mute / unmute the mic (M)">🎙</button>
+    </div>
+  </div>
+
+  <div class="flow-arrow">→</div>
+
+  <div class="col out">
+    <div class="panel wf-wrap">
+      <canvas class="wf"></canvas>
+      <div class="cap">what we hear</div>
+    </div>
+    <canvas class="eq"></canvas>
+    <div class="chips eqp">
+      <button data-eq="bypass">Bypass</button>
+      <button data-eq="lowpass">Low-pass</button>
+      <button data-eq="highpass">High-pass</button>
+      <button data-eq="telephone">Telephone</button>
+      <button data-eq="narrow">Narrow band</button>
+      <button data-eq="ears" title="Typical adult hearing: no infrasound, no ultrasound, high-frequency roll-off">Adult ears</button>
+      <label class="width">width <input type="range" min="0" max="1000" value="0" /><output></output></label>
+    </div>
+  </div>
+
+  <div class="title-card">
+    <h1>Purple is not a&nbsp;color</h1>
+    <p class="sub open">notes from the eye, for the ear</p>
+    <button class="track-toggle" title="Play / pause">
+      <span class="icon">⏸</span> Arvo Pärt — <i>Spiegel im Spiegel</i>
+    </button>
+  </div>
+</div>

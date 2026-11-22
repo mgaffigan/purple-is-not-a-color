@@ -1,0 +1,44 @@
+## Sections 
+- What is sound (change in pressure over time)
+  - Time series graph
+  - (Frequency analysis)
+- What is sound (power and frequency, waterfall of room noise + total power)
+  - Power as volume
+  - Difference between power and frequency
+  - Tones refer to an energy at a particular frequency (tone generator)
+  - Chords refer to multiple tones
+  - Perception (infrasound, ultrasound, continuous - glissando)
+- Subtractive model
+  - Parallel waterfall room tone and noise
+  - EQ as a subtractive filter
+  - Pure tone and chord from noise
+  - Pure tone vs band
+- What is light (wibbly wobbly timey wimey)
+  - Time series graph / photons
+- What is light (power and frequency)
+  - Power as brightness
+  - “Waterfall” by frequency
+  - Color picker of ROYGBIV
+- Subtractive model
+  - Sunlight = noise = power at every frequency
+  - Filters as subtractive model (rgb)
+  - A filter that appears red passes only red light
+  - An object that appears red reflects only red light
+- Perception is not continuous (luma, r, g, b bands)
+  - “Waterfall” with human waterfall, same ROYGBIV color picker
+  - Infrared and ultraviolet
+- The brain fills in the gaps quiz
+  - Red, green, blue -> pure tones
+  - Orange, blue green  
+- Aside: Colorblind = atypical perception
+- The brain can’t see actual colors, only perceived = can’t hear chords
+  - Mix of two reds = red
+  - Mix of two other colors = other colors
+- Except when it can
+  - Mix of red (lowest perceivable color) and blue (highest perceivable color) is perceived as purple
+  - No wavelength, purely a human experience of seeing two colors simultaneously. Like a chord.
+- Aside: Narrowband lighting sucks
+  - Sunlight is uniform = can see the color of all objects
+  - Narrowband objects only reflect a very precise color
+  - Fluorescent only illuminate at very narrow bands
+	

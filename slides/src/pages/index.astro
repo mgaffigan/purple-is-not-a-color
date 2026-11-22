@@ -1,0 +1,160 @@
+---
+import '../styles/global.css';
+import SoundLab from '../scenes/SoundLab.astro';
+import Wavelets from '../scenes/Wavelets.astro';
+import LightLab from '../scenes/LightLab.astro';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Purple is not a color</title>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <!-- Persistent scenes live outside <section>s so they survive slide changes. -->
+        <div class="labs">
+          <SoundLab />
+          <Wavelets />
+          <LightLab />
+        </div>
+
+        <!-- ================= SOUND ================= -->
+        <section data-scene="sound" data-stage="title">
+          <aside class="notes">
+            <ul>
+              <li><b>Before anyone arrives:</b> click once in the deck window to arm audio + mic.</li>
+              <li>Background = live spectrum of this room + Arvo Pärt, <i>Spiegel im Spiegel</i> (fades out on →, resumes if you come back).</li>
+              <li>"You already know everything in this talk. You just know it with your ears."</li>
+            </ul>
+          </aside>
+        </section>
+
+        <section data-scene="sound" data-stage="A">
+          <aside class="notes">
+            <ul>
+              <li><b>Sound = pressure changing over time</b> (top strip). Pure tone → clean wiggle; chord (keys 1–5) → messy.</li>
+              <li><b>Waterfall:</b> same sound, sorted by frequency. Left = low, right = high, time falls down.</li>
+              <li>Brightness = <b>power</b> (volume). Position = <b>frequency</b> (pitch). Two different things.</li>
+              <li>A <b>tone</b> = energy at one frequency. A <b>chord</b> = several tones (with harmonics, from the chord chips).</li>
+              <li>Room noise + your voice are on there too (M mutes mic).</li>
+              <li><b>Limits:</b> below ~20 Hz infrasound, above ~20 kHz ultrasound. "Who can still hear this?" — drag high.</li>
+              <li>Drag across the strip = glissando. Hearing is <b>continuous</b>: every frequency between is a pitch.</li>
+              <li>Hold a key = the same pure tone, but drag across keys and it moves in <b>steps</b>. The keyboard doesn't even cover all we hear.</li>
+            </ul>
+          </aside>
+        </section>
+
+        <section data-scene="sound" data-stage="B">
+          <aside class="notes">
+            <ul>
+              <li><b>Subtractive model.</b> Left = what goes in. Right = what comes out.</li>
+              <li>An EQ can only <b>remove</b> (well — mostly). Shaded = what's taken away.</li>
+              <li>Pink noise → Telephone. Chord → Low-pass: lose the brightness, keep the pitch.</li>
+              <li>Drag the dots; scroll on a dot to change sharpness.</li>
+              <li><b>Adult ears</b> = our own EQ: nothing below 20 Hz, rolling off above ~13 kHz (teens hear to 17–20k; it drops with age).</li>
+              <li><b>White noise</b> = power at every frequency. → <b>Narrow band</b> (A4).</li>
+              <li>Drag <b>width</b> slider right: hiss → whistle → a pitch. Drag the ♪ dot to "play" it.</li>
+              <li>Keep this picture: <b>remove everything but one sliver = a pure tone.</b></li>
+            </ul>
+          </aside>
+        </section>
+
+        <!-- ================= WIBBLY WOBBLY ================= -->
+        <section data-scene="waves" data-stage="main">
+          <aside class="notes">
+            <ul>
+              <li>Light: wave? particle? Both. Neither. Physicists argue; we won't.</li>
+              <li>Huygens: every point on a wave is a new little wave. They add up.</li>
+              <li>Two slits: stripes = waves adding and cancelling. Pretty. Irrelevant today.</li>
+              <li>"This talk is about <b>eyes</b>, not photons. Just treat light like sound: power at a frequency."</li>
+            </ul>
+          </aside>
+        </section>
+
+        <!-- ================= LIGHT ================= -->
+        <section data-scene="light" data-stage="A">
+          <aside class="notes">
+            <ul>
+              <li>Same instrument, for light. Left = low frequency (red), right = high (violet). Top bar = <b>what it is</b>: each colour's share of the power; top right = what we see.</li>
+              <li>Brightness = power. Colour = frequency. Like volume and pitch.</li>
+              <li>Listen: colours are playing quietly, <b>40 octaves down</b>. Red = G4, violet ≈ F5. (T mutes.)</li>
+              <li>ROYGBIV chips (keys 1–7). Drag the strip: a glissando of colour.</li>
+              <li>The whole rainbow is <b>less than one octave.</b></li>
+              <li>Infrared below, ultraviolet above. Silent, because we can't see them.</li>
+              <li>Incandescent: most of its power is infrared — it's a heater that glows.</li>
+            </ul>
+          </aside>
+        </section>
+
+        <section data-scene="light" data-stage="B">
+          <aside class="notes">
+            <ul>
+              <li><b>Sunlight = white noise.</b> Power at every frequency.</li>
+              <li>A filter is an EQ. Band-pass → one colour out. Drag it: pick your colour.</li>
+              <li>Red gel passes only red. <b>A red apple is a red filter</b> — it reflects only red.</li>
+              <li>Now try other inputs: Sodium lamp (one spike), Fluorescent (a few spikes), LED.</li>
+              <li><b>Paints</b> are filters too (bottom row; the dots show each one's colour right now).</li>
+              <li>Sunlight: <b>Sage A</b> and <b>Sage B</b> match. → <b>Fluorescent</b>: they come apart. Why paint chips lie in the hardware store.</li>
+            </ul>
+          </aside>
+        </section>
+
+        <section data-scene="light" data-stage="C">
+          <aside class="notes">
+            <ul>
+              <li>Here's the twist. Ears are continuous. <b>Eyes aren't.</b></li>
+              <li>Right side = the same waterfall, but with the eye's <b>very unusual binning</b>: red-ish, green-ish, blue-ish, plus brightness (luma). (Really overlapping cones — never mind.)</li>
+              <li>All the brain gets is those few numbers. Every detail inside a bin is thrown away.</li>
+              <li>"Pure red" = one wavelength. "Mixed red" = two. Same bins → <b>same colour.</b></li>
+              <li>Listen to both: one note vs. a chord. Your ears know. Your eyes can't.</li>
+            </ul>
+          </aside>
+        </section>
+
+        <section data-scene="light" data-stage="cri">
+          <aside class="notes">
+            <ul>
+              <li>Objects are filters. They can only reflect what the light <b>has</b>.</li>
+              <li>Sunlight: everything shows its colour.</li>
+              <li><b>Sodium lamp</b> (one note): everything is the same colour. <b>Monotone.</b></li>
+              <li>Fluorescent / LED: a few notes — mostly OK, but some colours go dull. (That's CRI.)</li>
+            </ul>
+          </aside>
+        </section>
+
+        <section data-scene="light" data-stage="purple">
+          <span class="fragment"><span class="headline">Purple is a <em>chord</em>.</span></span>
+          <aside class="notes">
+            <ul>
+              <li>Red is the lowest colour we see. Click it. Violet is the highest. Shift-click it.</li>
+              <li>Red bin + blue bin, <b>no green</b>. No single wavelength does that.</li>
+              <li>Sweep the strip — purple isn't anywhere on it.</li>
+              <li>The brain invents a colour for "both ends at once". Listen: 7:4 — a harmonic seventh.</li>
+              <li><b>→</b> Purple is not a colour. It's a chord.</li>
+            </ul>
+          </aside>
+        </section>
+      </div>
+    </div>
+
+    <div class="arm-badge">🔈 click to arm audio</div>
+
+    <script>
+      import { initDeck } from '../lib/deck';
+      import { SoundScene } from '../scenes/sound';
+      import { WaveletScene } from '../scenes/wavelets';
+      import { LightScene } from '../scenes/light';
+
+      const q = (s: string) => document.querySelector<HTMLElement>(s)!;
+      initDeck({
+        sound: new SoundScene(q('.lab.sound')),
+        waves: new WaveletScene(q('.lab.waves')),
+        light: new LightScene(q('.lab.light')),
+      });
+    </script>
+  </body>
+</html>
