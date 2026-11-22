@@ -4,7 +4,7 @@ import {
   coneCurves, css, deuteranope, makeAdapter, xyzToSrgb, xyzToSrgbBright, type Vec3,
 } from '../lib/light/cie';
 import {
-  LINE_SIGMA, NM0, PAINTS, POLY_RED, PURPLE, PURPLES, ROYGBIV, SOURCES, Spectrum, TWIN_RED, lumaOf,
+  LINE_SIGMA, NM0, PAINTS, POLY_RED, PURPLE, ROYGBIV, SOURCES, Spectrum, TWIN_RED, lumaOf,
   transmission, type OpticalFilter,
 } from '../lib/light/spectra';
 import { Sonifier } from '../lib/light/sonify';
@@ -308,7 +308,7 @@ export class LightScene implements Scene {
         } else if (d.source) this.setInput(SOURCES[d.source](), d.source);
         else if (d.mix === 'poly') this.setInput(POLY_RED(), 'poly');
         else if (d.mix === 'twin') this.setInput(TWIN_RED(), 'twin');
-        else if (d.purple) this.setInput(PURPLES.find((p) => p.id === d.purple)!.spec(), d.purple);
+        else if (d.purple !== undefined) this.setInput(PURPLE(), 'purple');
         else if (d.paint) this.setFilter({ ...this.filter, kind: 'paint', paint: +d.paint });
         else if (d.filter) {
           const kind = d.filter as OpticalFilter['kind'];
@@ -324,7 +324,7 @@ export class LightScene implements Scene {
       if (d.nm) on = this.input.lines.some((l) => Math.abs(l.nm - +d.nm!) < 0.5) && !this.sourceName;
       if (d.source) on = this.sourceName === d.source;
       if (d.mix) on = this.sourceName === d.mix;
-      if (d.purple) on = this.sourceName === d.purple;
+      if (d.purple !== undefined) on = this.sourceName === 'purple';
       if (d.filter) on = this.filter.kind === d.filter;
       if (d.paint) {
         on = this.filter.kind === 'paint' && this.filter.paint === +d.paint;
@@ -498,7 +498,7 @@ export class LightScene implements Scene {
         this.filterCurve.invalidate();
         this.setInput(TWIN_RED(), 'twin');
       }
-      if (stage === 'purple' && !PURPLES.some((p) => p.id === this.sourceName)) this.setInput(PURPLE(), PURPLES[0].id);
+      if (stage === 'purple' && this.sourceName !== 'purple') this.setInput(PURPLE(), 'purple');
     }
     this.recompute();
   }

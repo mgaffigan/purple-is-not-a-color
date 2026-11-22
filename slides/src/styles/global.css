@@ -571,9 +571,6 @@ html .reveal-viewport {
 .light[data-stage='purple'] .g-purple {
   display: contents;
 }
-.light[data-stage='purple'] .g-sources {
-  display: none;
-}
 
 /* side-by-side stages */
 .light:is([data-stage='B'], [data-stage='C'], [data-stage='purple']) .col.in {

@@ -1,5 +1,5 @@
 ---
-import { PAINTS, PURPLES, ROYGBIV, SOURCES } from '../lib/light/spectra';
+import { PAINTS, ROYGBIV, SOURCES } from '../lib/light/spectra';
 const sources = Object.keys(SOURCES);
 ---
 
@@ -31,10 +31,9 @@ const sources = Object.keys(SOURCES);
       <span class="g g-mix">
         <button data-mix="poly">Mixed red</button>
         <button data-mix="twin">Pure red</button>
-        <button data-purple="p74" class="purple-chip">Red + Violet</button>
       </span>
       <span class="g g-purple">
-        {PURPLES.map((p) => <button data-purple={p.id} class="purple-chip">{p.label}</button>)}
+        <button data-purple class="purple-chip">Purple</button>
       </span>
       <button class="tone-ind" data-act="tones" title="Mute / unmute colour tones (T)">♪</button>
     </div>

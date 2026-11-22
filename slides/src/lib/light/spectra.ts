@@ -178,16 +178,9 @@ function solve(A: number[][], b: number[]): number[] {
   return M.map((r, i) => r[n] / r[i]);
 }
 
-/** Purples: a red and a violet together. All at the same brightness, so only hue differs.
- *  700/400 = 7:4 (harmonic seventh); its 0.45 violet:red ratio is the most vivid on screen. */
-const PURPLE_LUMA = 0.12;
-export const PURPLES: { id: string; label: string; spec: () => Spectrum }[] = [
-  { id: 'p74', label: 'Purple 7:4', spec: () => atLuma(Spectrum.lines([700, 1], [400, 0.45]), PURPLE_LUMA) },
-  { id: 'p32', label: 'Purple 3:2', spec: () => atLuma(Spectrum.lines([660, 1], [440, 0.24]), PURPLE_LUMA) },
-  { id: 'pblue', label: 'Bluer purple', spec: () => atLuma(Spectrum.lines([700, 1], [400, 1.5]), PURPLE_LUMA) },
-  { id: 'pred', label: 'Redder purple', spec: () => atLuma(Spectrum.lines([700, 1], [400, 0.15]), PURPLE_LUMA) },
-];
-export const PURPLE = PURPLES[0].spec;
+/** Purple: the lowest and highest colours we see, together. 700/400 = 7:4 (a harmonic
+ *  seventh). The 0.45 violet:red ratio is the most vivid on screen. */
+export const PURPLE = () => atLuma(Spectrum.lines([700, 1], [400, 0.45]), 0.12);
 /** A polychromatic red. Its pure twin is found with dominantNm(). */
 export const POLY_RED = () => Spectrum.lines([620, 0.45], [690, 1]);
 
