@@ -39,7 +39,7 @@ const EQ_PRESETS: Record<string, (cur: EqSettings) => EqSettings> = {
 };
 
 /** Played under the title slide (from public/). */
-const TITLE_TRACK = '/Arvo_Part_Spiegel_im_Spiegel.mp3';
+const TITLE_TRACK = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/Arvo_Part_Spiegel_im_Spiegel.mp3`;
 
 const DB_TOP = 12, DB_BOTTOM = -48;
 const dbToY = (db: number) => (db - DB_BOTTOM) / (DB_TOP - DB_BOTTOM);

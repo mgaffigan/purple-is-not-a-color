@@ -15,6 +15,18 @@ npm run build && npm run preview
 
 Use Chrome. The mic needs `localhost` (or https).
 
+## Publish to GitHub Pages
+
+`.github/workflows/deploy-pages.yml` (at the repo root) builds `slides/` and deploys it on every push to `main` (or by hand from the Actions tab).
+
+1. Push the repo to GitHub.
+2. In the repo, go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**.
+3. Push to `main`. The site appears at `https://<user>.github.io/<repo>/`.
+
+The workflow passes the Pages URL and sub-path to Astro (`ASTRO_SITE` / `ASTRO_BASE`), so the same code works under `/<repo>/`, on a custom domain, and locally at `/`. Pages is served over HTTPS, so the mic works there.
+
+**Heads-up:** anything in `public/` is published. That includes the Pärt recording. If you don't have the rights to post it publicly, keep it out of the repo (for example, add `public/*.mp3` to `.gitignore`). The title slide then plays its built-in synthesized fallback.
+
 ## Before the audience arrives
 
 1. Open the deck full-screen on the projector (`F`).
