@@ -1,10 +1,10 @@
 import { LIGHT_AXIS, VISIBLE_NM, nmToTHz, thzToNm } from '../lib/axis';
 import { getEngine } from '../lib/audio/engine';
 import {
-  css, deuteranope, makeAdapter, xyzToLms, xyzToSrgb, xyzToSrgbBright, type Vec3,
+  coneCurves, css, deuteranope, makeAdapter, xyzToSrgb, xyzToSrgbBright, type Vec3,
 } from '../lib/light/cie';
 import {
-  LINE_SIGMA, NM0, PAINTS, POLY_RED, PURPLE, ROYGBIV, SOURCES, Spectrum, dominantNm,
+  LINE_SIGMA, NM0, PAINTS, POLY_RED, PURPLE, PURPLES, ROYGBIV, SOURCES, Spectrum, TWIN_RED, lumaOf,
   transmission, type OpticalFilter,
 } from '../lib/light/spectra';
 import { Sonifier } from '../lib/light/sonify';
@@ -16,7 +16,6 @@ import { $, $c, type Scene } from '../lib/scene';
 
 const SUN = SOURCES.Sunlight();
 const adaptSun = makeAdapter(SUN.xyz());
-const SUN_LMS = xyzToLms(adaptSun(SUN.xyz()));
 
 // ---------- colour helpers ----------
 const spectralCache = new Map<number, Vec3>();
@@ -50,12 +49,33 @@ function perceived(s: Spectrum): Vec3 {
   const k = Math.min(1, Math.sqrt(xyz[1] / (0.003 * Math.max(1e-6, s.max()))));
   return [b[0] * k, b[1] * k, b[2] * k];
 }
-function bins(s: Spectrum): Vec3 {
-  const l = xyzToLms(adaptSun(s.xyz()));
-  const v: Vec3 = [l[0] / SUN_LMS[0], l[1] / SUN_LMS[1], l[2] / SUN_LMS[2]].map((x) => Math.max(0, x)) as Vec3;
-  const m = Math.max(...v);
-  return m > 1e-9 ? (v.map((x) => x / m) as Vec3) : [0, 0, 0];
+/** The eye's three bins, absolutely: each cone's sensitivity (peak = 1) applied to the light,
+ *  at a fixed exposure where a unit-height line at the cone's peak wavelength = 1. No
+ *  per-spectrum normalisation, so adding light can never lower a bin. */
+const CONE_PEAK: Vec3 = (() => {
+  const p: Vec3 = [0, 0, 0];
+  for (let nm = 380; nm <= 780; nm++) {
+    const c = coneCurves(nm);
+    for (let k = 0; k < 3; k++) p[k] = Math.max(p[k], c[k]);
+  }
+  return p;
+})();
+function coneExcitation(s: Spectrum): Vec3 {
+  const e: Vec3 = [0, 0, 0];
+  const add = (nm: number, w: number) => {
+    const c = coneCurves(nm);
+    for (let k = 0; k < 3; k++) e[k] += (w * c[k]) / CONE_PEAK[k];
+  };
+  const LA = LINE_SIGMA * Math.sqrt(2 * Math.PI);
+  for (let nm = 360; nm <= 830; nm++) {
+    const v = s.broad[nm - NM0];
+    if (v) add(nm, v / LA);
+  }
+  for (const l of s.lines) add(l.nm, l.p);
+  return e;
 }
+/** One fixed photoreceptor-like compression (Naka–Rushton), 1 → 1, so dim signals stay visible. */
+const compress = (x: number) => Math.min(1, (x * 1.35) / (x + 0.35));
 
 /** How a surface with reflectance r looks under this light: relative to the
  *  light's own white, with partial adaptation (the eye adjusts, but not fully). */
@@ -74,9 +94,6 @@ const BIN_REGIONS: { lo: number; hi: number; label: string; tint: Vec3 }[] = [
 ];
 const LUMA_TINT: Vec3 = [0.9, 0.9, 0.9];
 const LUMA_PX = 80; // css px for the luma column at the right edge
-const toLin = (u: number) => (u <= 0.04045 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4));
-/** brightness of what we see (relative luminance of the swatch colour) */
-const lumaOf = (c: Vec3) => 0.2126 * toLin(c[0]) + 0.7152 * toLin(c[1]) + 0.0722 * toLin(c[2]);
 const LINE_AREA = LINE_SIGMA * Math.sqrt(2 * Math.PI);
 
 /** width slider 0..1000 ↔ 4..250 nm (log) */
@@ -246,9 +263,9 @@ export class LightScene implements Scene {
     const out = isPaint ? surfaceColor(this.input, PAINTS[this.filter.paint].r) : perceived(this.output);
     this.swOut.style.background = css(fix(out));
     // what the brain gets: three colour bins + brightness
-    const b = bins(this.output);
+    const b = coneExcitation(this.output).map(compress);
     this.binVals = this.colorBlind ? [(b[0] + b[1]) / 2, (b[0] + b[1]) / 2, b[2], 0] : [b[0], b[1], b[2], 0];
-    this.binVals[3] = this.output.empty ? 0 : Math.pow(lumaOf(out), 0.5);
+    this.binVals[3] = compress(lumaOf(this.output));
   }
 
   private updateSound() {
@@ -290,8 +307,8 @@ export class LightScene implements Scene {
           else this.setInput(Spectrum.line(+d.nm), null);
         } else if (d.source) this.setInput(SOURCES[d.source](), d.source);
         else if (d.mix === 'poly') this.setInput(POLY_RED(), 'poly');
-        else if (d.mix === 'twin') this.setInput(Spectrum.line(dominantNm(POLY_RED())), 'twin');
-        else if (d.mix === 'purple') this.setInput(PURPLE(), 'purple');
+        else if (d.mix === 'twin') this.setInput(TWIN_RED(), 'twin');
+        else if (d.purple) this.setInput(PURPLES.find((p) => p.id === d.purple)!.spec(), d.purple);
         else if (d.paint) this.setFilter({ ...this.filter, kind: 'paint', paint: +d.paint });
         else if (d.filter) {
           const kind = d.filter as OpticalFilter['kind'];
@@ -307,6 +324,7 @@ export class LightScene implements Scene {
       if (d.nm) on = this.input.lines.some((l) => Math.abs(l.nm - +d.nm!) < 0.5) && !this.sourceName;
       if (d.source) on = this.sourceName === d.source;
       if (d.mix) on = this.sourceName === d.mix;
+      if (d.purple) on = this.sourceName === d.purple;
       if (d.filter) on = this.filter.kind === d.filter;
       if (d.paint) {
         on = this.filter.kind === 'paint' && this.filter.paint === +d.paint;
@@ -478,9 +496,9 @@ export class LightScene implements Scene {
       if (stage === 'C') {
         this.filter = { kind: 'none', nm: 530, width: 40, paint: 0 };
         this.filterCurve.invalidate();
-        this.setInput(Spectrum.line(dominantNm(POLY_RED())), 'twin');
+        this.setInput(TWIN_RED(), 'twin');
       }
-      if (stage === 'purple' && this.sourceName !== 'purple') this.setInput(PURPLE(), 'purple');
+      if (stage === 'purple' && !PURPLES.some((p) => p.id === this.sourceName)) this.setInput(PURPLE(), PURPLES[0].id);
     }
     this.recompute();
   }

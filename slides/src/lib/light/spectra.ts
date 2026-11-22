@@ -103,6 +103,16 @@ export class Spectrum {
   }
 }
 
+/** Brightness to the eye (luminance), in units of a unit-height line at 555 nm = 1. */
+export const lumaOf = (s: Spectrum) => s.xyz()[1] / LINE_AREA;
+/** Scale a spectrum to a given brightness (like dimming a lamp). */
+export const atLuma = (s: Spectrum, target: number) => {
+  const y = lumaOf(s);
+  return y > 0 ? s.scaled(target / y) : s;
+};
+/** Every lamp is set to the same brightness at the source (an input choice, not display normalisation). */
+const LAMP_LUMA = 0.6;
+
 // ---------- sources ----------
 export const ROYGBIV: { name: string; nm: number }[] = [
   { name: 'Red', nm: 650 },
@@ -114,7 +124,7 @@ export const ROYGBIV: { name: string; nm: number }[] = [
   { name: 'Violet', nm: 410 },
 ];
 
-export const SOURCES: Record<string, () => Spectrum> = {
+const RAW_SOURCES: Record<string, () => Spectrum> = {
   Sunlight: () => Spectrum.blackbody(5778, 0.85),
   Incandescent: () => Spectrum.blackbody(2700, 0.35),
   // High-pressure sodium streetlight: the D lines are pressure-broadened into a wide
@@ -135,6 +145,9 @@ export const SOURCES: Record<string, () => Spectrum> = {
       .plus(Spectrum.fn((nm) => (nm > 400 && nm < 720 ? 0.006 : 0))),
   'White LED': () => Spectrum.gauss(450, 10, 1).plus(Spectrum.gauss(565, 55, 0.5)),
 };
+export const SOURCES: Record<string, () => Spectrum> = Object.fromEntries(
+  Object.entries(RAW_SOURCES).map(([k, f]) => [k, () => atLuma(f(), LAMP_LUMA)]),
+);
 
 /** Find non-negative weights for lines a,b so the mix matches a target's colour (least squares on XYZ). */
 export function matchMix(target: Spectrum, nms: number[]): Spectrum {
@@ -165,9 +178,16 @@ function solve(A: number[][], b: number[]): number[] {
   return M.map((r, i) => r[n] / r[i]);
 }
 
-/** Purple: the lowest and highest colours we see, together. 700/400 = 7:4.
- *  The violet:red power ratio (0.43) is the one that gives the most vivid on-screen purple. */
-export const PURPLE = () => Spectrum.lines([700, 1], [400, 0.43]);
+/** Purples: a red and a violet together. All at the same brightness, so only hue differs.
+ *  700/400 = 7:4 (harmonic seventh); its 0.45 violet:red ratio is the most vivid on screen. */
+const PURPLE_LUMA = 0.12;
+export const PURPLES: { id: string; label: string; spec: () => Spectrum }[] = [
+  { id: 'p74', label: 'Purple 7:4', spec: () => atLuma(Spectrum.lines([700, 1], [400, 0.45]), PURPLE_LUMA) },
+  { id: 'p32', label: 'Purple 3:2', spec: () => atLuma(Spectrum.lines([660, 1], [440, 0.24]), PURPLE_LUMA) },
+  { id: 'pblue', label: 'Bluer purple', spec: () => atLuma(Spectrum.lines([700, 1], [400, 1.5]), PURPLE_LUMA) },
+  { id: 'pred', label: 'Redder purple', spec: () => atLuma(Spectrum.lines([700, 1], [400, 0.15]), PURPLE_LUMA) },
+];
+export const PURPLE = PURPLES[0].spec;
 /** A polychromatic red. Its pure twin is found with dominantNm(). */
 export const POLY_RED = () => Spectrum.lines([620, 0.45], [690, 1]);
 
@@ -284,3 +304,10 @@ export const PAINTS: Paint[] = [
   { name: 'Lavender', r: (nm) => 0.12 + 0.45 * bump(nm, 440, 35) + 0.4 * logistic(nm, 640, 18) },
   ...SURFACES,
 ];
+
+/** The pure-wavelength twin of POLY_RED, matched in brightness too: a true metamer
+ *  (identical in all three cone bins and in luma). */
+export const TWIN_RED = () => {
+  const poly = POLY_RED();
+  return atLuma(Spectrum.line(dominantNm(poly)), lumaOf(poly));
+};

@@ -561,8 +561,18 @@ html .reveal-viewport {
 .light .g-mix {
   display: none;
 }
-.light:is([data-stage='C'], [data-stage='purple']) .g-mix {
+.light[data-stage='C'] .g-mix {
   display: contents;
+}
+/* purple slide: the purple options replace the lamps */
+.light .g-purple {
+  display: none;
+}
+.light[data-stage='purple'] .g-purple {
+  display: contents;
+}
+.light[data-stage='purple'] .g-sources {
+  display: none;
 }
 
 /* side-by-side stages */
@@ -630,17 +640,23 @@ html .reveal-viewport {
 }
 .reveal .headline {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 50%;
   top: 330px;
+  transform: translateX(-50%);
+  white-space: nowrap;
   text-align: center;
   font: 800 120px/1.1 var(--font);
-  text-shadow: 0 6px 60px #000;
   color: #fff;
+  /* a dark plate so it reads over the busy waterfalls */
+  background: rgba(7, 7, 11, 0.93);
+  padding: 18px 56px 28px;
+  border-radius: 28px;
+  box-shadow: 0 10px 60px rgba(0, 0, 0, 0.7);
 }
 .reveal .headline em {
   font-style: normal;
-  background: linear-gradient(90deg, var(--red), #a020c0, var(--violet));
+  /* bright end-to-end so it holds up on black: luminous red → magenta → violet */
+  background: linear-gradient(90deg, #ff4d6d, #ff3df0 50%, #b48cff);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
