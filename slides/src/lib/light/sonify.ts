@@ -58,7 +58,7 @@ interface Band {
   edges: [number, number]; // nm, long → short
 }
 /** Narrowest band-pass we'll tune to (a few-Hz-wide band ≈ a pure tone with a slow wobble). */
-const MAX_Q = 300;
+const MAX_Q = 1000; // 1 nm at 530 nm ≈ a 1 Hz band: essentially a pure tone
 
 /**
  * Plays a light spectrum exactly 40 octaves down, the same way the sound lab works:
@@ -142,7 +142,7 @@ export class Sonifier {
         if (s <= 0) return;
         // Tune the filter to the light actually in the band: centred on it, and as narrow as it
         // is (equivalent-rectangle width). White light fills the band → the band's own width;
-        // a 4 nm slice → a ~4 Hz band ≈ a pure tone.
+        // a 1 nm slice → a ~1 Hz band ≈ a pure tone.
         const mean = m1 / s;
         const widthNm = Math.max(1, Math.sqrt(12 * Math.max(0, m2 / s - mean * mean)));
         const fc = nmToAudioHz(mean);

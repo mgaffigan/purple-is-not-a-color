@@ -97,9 +97,10 @@ const BIN_REGIONS: { lo: number; hi: number; label: string; tint: Vec3 }[] = [
 const LUMA_PX = 80; // css px for the luma column at the right edge
 const LINE_AREA = LINE_SIGMA * Math.sqrt(2 * Math.PI);
 
-/** width slider 0..1000 ↔ 4..250 nm (log) */
-const sliderToNm = (v: number) => 4 * Math.pow(250 / 4, v / 1000);
-const nmToSlider = (w: number) => (1000 * Math.log(w / 4)) / Math.log(250 / 4);
+/** Band-pass width range: 1 nm (≈ a pure tone) to 250 nm. Slider 0..1000 is log-spaced. */
+const MIN_W = 1, MAX_W = 250;
+const sliderToNm = (v: number) => MIN_W * Math.pow(MAX_W / MIN_W, v / 1000);
+const nmToSlider = (w: number) => (1000 * Math.log(w / MIN_W)) / Math.log(MAX_W / MIN_W);
 
 type Stage = 'A' | 'B' | 'C' | 'purple';
 
@@ -207,11 +208,11 @@ export class LightScene implements Scene {
           ? [{ id: 'bp', f: nmToTHz(this.filter.nm), y: 0.92, color: '#fff' }]
           : [],
       onDrag: (_id, thz, _y, dy) => {
-        const width = Math.max(4, Math.min(250, this.filter.width * Math.pow(2, -dy * 3)));
+        const width = Math.max(MIN_W, Math.min(MAX_W, this.filter.width * Math.pow(2, -dy * 3)));
         this.setFilter({ ...this.filter, nm: thzToNm(thz), width });
       },
       onWheel: (_id, d) =>
-        this.setFilter({ ...this.filter, width: Math.max(4, Math.min(250, this.filter.width * Math.pow(1.15, d))) }),
+        this.setFilter({ ...this.filter, width: Math.max(MIN_W, Math.min(MAX_W, this.filter.width * Math.pow(1.15, d))) }),
       fill: (frac) => {
         const nm = fracToNm(frac);
         const c = isVisible(nm) ? spectralColor(nm) : invisibleTint;
@@ -341,7 +342,8 @@ export class LightScene implements Scene {
     this.root.classList.toggle('bandpass-on', this.filter.kind === 'bandpass');
     const slider = this.root.querySelector<HTMLInputElement>('.flt .width input')!;
     slider.value = String(nmToSlider(this.filter.width));
-    this.root.querySelector('.flt .width output')!.textContent = `${Math.round(this.filter.width)} nm`;
+    const wNm = this.filter.width;
+    this.root.querySelector('.flt .width output')!.textContent = `${wNm < 10 ? wNm.toFixed(1) : Math.round(wNm)} nm`;
     this.root.querySelector('.tone-ind')!.classList.toggle('muted', !!this.sonifier?.muted);
   }
 
