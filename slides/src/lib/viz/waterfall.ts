@@ -74,9 +74,6 @@ export class Waterfall {
     }
   }
 
-  /** Number of rows pushed so far (handy for animated patterns). */
-  rows = 0;
-
   /** Recompute the per-column tint (e.g. after the tint function's inputs change). */
   retint() {
     this.layout();
@@ -143,7 +140,6 @@ export class Waterfall {
 
   /** Scroll down one row and paint this.values at the top. */
   push() {
-    this.rows++;
     const { ctx, w, h } = this.ac;
     ctx.drawImage(ctx.canvas, 0, 0, w, h - 1, 0, 1, w, h - 1);
     const d = this.row.data;

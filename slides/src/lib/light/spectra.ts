@@ -117,13 +117,22 @@ export const ROYGBIV: { name: string; nm: number }[] = [
 export const SOURCES: Record<string, () => Spectrum> = {
   Sunlight: () => Spectrum.blackbody(5778, 0.85),
   Incandescent: () => Spectrum.blackbody(2700, 0.35),
-  'Sodium lamp': () => Spectrum.lines([589.0, 1], [589.6, 0.9], [818.3, 0.3], [819.5, 0.3]),
+  // High-pressure sodium streetlight: the D lines are pressure-broadened into a wide
+  // golden hump with a self-absorbed dip at 589 nm, plus weaker sodium lines, strong
+  // 819 nm infrared, and faint mercury lines from the amalgam.
+  'Sodium lamp': () =>
+    Spectrum.fn((nm) => {
+      const g = (c: number, w: number, p: number) => p * Math.exp(-0.5 * ((nm - c) / w) ** 2);
+      const hump = g(580, 9, 0.9) + g(598, 11, 1) + g(590, 28, 0.22);
+      const selfAbsorbed = 1 - 0.92 * Math.exp(-0.5 * ((nm - 589.3) / 2.2) ** 2);
+      return hump * selfAbsorbed + g(568.5, 1.8, 0.35) + g(616, 2.2, 0.3) + g(498, 1.5, 0.1) + g(819, 4, 0.55);
+    }).plus(Spectrum.lines([436, 0.06], [546, 0.05])),
+  // Tri-phosphor tube: mercury lines + the narrow europium-red (611) and terbium-green (543)
+  // phosphor peaks (a few nm wide: tones, not noise), a broad blue phosphor, faint continuum.
   Fluorescent: () =>
-    Spectrum.lines([365, 0.25], [405, 0.3], [436, 0.75], [546, 1], [578, 0.2])
-      .plus(Spectrum.gauss(611, 2.5, 0.85))
-      .plus(Spectrum.gauss(543, 3, 0.45))
-      .plus(Spectrum.gauss(450, 18, 0.12))
-      .plus(Spectrum.fn((nm) => (nm > 400 && nm < 720 ? 0.025 : 0))),
+    Spectrum.lines([365, 0.25], [405, 0.3], [436, 0.75], [546, 1], [578, 0.2], [611, 1.42], [543, 0.9])
+      .plus(Spectrum.gauss(450, 18, 0.08))
+      .plus(Spectrum.fn((nm) => (nm > 400 && nm < 720 ? 0.006 : 0))),
   'White LED': () => Spectrum.gauss(450, 10, 1).plus(Spectrum.gauss(565, 55, 0.5)),
 };
 
@@ -156,8 +165,9 @@ function solve(A: number[][], b: number[]): number[] {
   return M.map((r, i) => r[n] / r[i]);
 }
 
-/** Purple: the lowest and highest colours we see, together. 700/400 = 7:4. */
-export const PURPLE = () => Spectrum.lines([700, 1], [400, 0.3]);
+/** Purple: the lowest and highest colours we see, together. 700/400 = 7:4.
+ *  The violet:red power ratio (0.43) is the one that gives the most vivid on-screen purple. */
+export const PURPLE = () => Spectrum.lines([700, 1], [400, 0.43]);
 /** A polychromatic red. Its pure twin is found with dominantNm(). */
 export const POLY_RED = () => Spectrum.lines([620, 0.45], [690, 1]);
 
@@ -212,13 +222,13 @@ export function transmission(f: OpticalFilter): (nm: number) => number {
 // ---------- surfaces (for the colour-rendering slide) ----------
 const logistic = (nm: number, edge: number, k: number) => 1 / (1 + Math.exp(-(nm - edge) / k));
 const bump = (nm: number, c: number, s: number) => Math.exp(-0.5 * ((nm - c) / s) ** 2);
+/** Everyday surfaces, shown alongside the paints. (No grape: too close to purple.) */
 export const SURFACES: { name: string; r: (nm: number) => number }[] = [
   { name: 'Tomato', r: (nm) => 0.05 + 0.72 * logistic(nm, 595, 11) },
   { name: 'Banana', r: (nm) => 0.07 + 0.75 * logistic(nm, 505, 14) },
   { name: 'Leaf', r: (nm) => 0.05 + 0.32 * bump(nm, 550, 28) + 0.5 * logistic(nm, 712, 9) },
   { name: 'Jeans', r: (nm) => 0.05 + 0.32 * bump(nm, 465, 38) + 0.15 * logistic(nm, 760, 20) },
   { name: 'Skin', r: (nm) => 0.14 + 0.45 * logistic(nm, 585, 22) },
-  { name: 'Grape', r: (nm) => 0.03 + 0.22 * bump(nm, 430, 28) + 0.3 * logistic(nm, 655, 14) },
 ];
 
 // ---------- paints (reflectance "filters" for the paints slide) ----------
@@ -272,4 +282,5 @@ export const PAINTS: Paint[] = [
   { name: 'Sage B', r: sageB },
   { name: 'Brick', r: (nm) => 0.06 + 0.5 * logistic(nm, 600, 18) - 0.12 * logistic(nm, 690, 25) },
   { name: 'Lavender', r: (nm) => 0.12 + 0.45 * bump(nm, 440, 35) + 0.4 * logistic(nm, 640, 18) },
+  ...SURFACES,
 ];

@@ -4,7 +4,7 @@ import {
   css, deuteranope, makeAdapter, xyzToLms, xyzToSrgb, xyzToSrgbBright, type Vec3,
 } from '../lib/light/cie';
 import {
-  LINE_SIGMA, NM0, PAINTS, POLY_RED, PURPLE, ROYGBIV, SOURCES, SURFACES, Spectrum, dominantNm,
+  LINE_SIGMA, NM0, PAINTS, POLY_RED, PURPLE, ROYGBIV, SOURCES, Spectrum, dominantNm,
   transmission, type OpticalFilter,
 } from '../lib/light/spectra';
 import { Sonifier } from '../lib/light/sonify';
@@ -45,9 +45,9 @@ function perceived(s: Spectrum): Vec3 {
   const xyz = s.xyz();
   if (!(xyz[1] > 1e-6)) return [0, 0, 0];
   const b = xyzToSrgbBright(adaptSun(xyz));
-  // compare with a unit-height 650 nm line ≈ 0.4
-  // Only fade light that is genuinely near-invisible (deep red / violet edges).
-  const k = Math.min(1, Math.pow(xyz[1] / (0.3 * Math.max(1e-6, s.max())), 0.12));
+  // Only fade light that is genuinely near the edge of vision (beyond ~730 nm / below ~410 nm),
+  // so deep red at 700 nm and purple stay vivid.
+  const k = Math.min(1, Math.sqrt(xyz[1] / (0.003 * Math.max(1e-6, s.max()))));
   return [b[0] * k, b[1] * k, b[2] * k];
 }
 function bins(s: Spectrum): Vec3 {
@@ -73,7 +73,6 @@ const BIN_REGIONS: { lo: number; hi: number; label: string; tint: Vec3 }[] = [
   { lo: VISIBLE_NM[0], hi: 490, label: 'blue-ish', tint: [0.3, 0.45, 1] },
 ];
 const LUMA_TINT: Vec3 = [0.9, 0.9, 0.9];
-const HATCH_TINT: Vec3 = [0.55, 0.55, 0.62];
 const LUMA_PX = 80; // css px for the luma column at the right edge
 const toLin = (u: number) => (u <= 0.04045 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4));
 /** brightness of what we see (relative luminance of the swatch colour) */
@@ -84,7 +83,7 @@ const LINE_AREA = LINE_SIGMA * Math.sqrt(2 * Math.PI);
 const sliderToNm = (v: number) => 4 * Math.pow(250 / 4, v / 1000);
 const nmToSlider = (w: number) => (1000 * Math.log(w / 4)) / Math.log(250 / 4);
 
-type Stage = 'A' | 'B' | 'C' | 'cri' | 'purple';
+type Stage = 'A' | 'B' | 'C' | 'purple';
 
 export class LightScene implements Scene {
   private engine = getEngine();
@@ -202,7 +201,6 @@ export class LightScene implements Scene {
       caption: 'filter',
     });
 
-    this.buildCri();
     this.wireChips();
     const slider = this.root.querySelector<HTMLInputElement>('.flt .width input')!;
     slider.addEventListener('input', () =>
@@ -251,7 +249,6 @@ export class LightScene implements Scene {
     const b = bins(this.output);
     this.binVals = this.colorBlind ? [(b[0] + b[1]) / 2, (b[0] + b[1]) / 2, b[2], 0] : [b[0], b[1], b[2], 0];
     this.binVals[3] = this.output.empty ? 0 : Math.pow(lumaOf(out), 0.5);
-    if (this.stage === 'cri') this.paintCri();
   }
 
   private updateSound() {
@@ -331,7 +328,7 @@ export class LightScene implements Scene {
     if (frac >= 1 - LUMA_PX / Math.max(1, this.binsEl.offsetWidth)) return LUMA_TINT;
     const nm = fracToNm(frac);
     const i = BIN_REGIONS.findIndex((r) => nm >= r.lo && nm < r.hi);
-    if (i < 0) return HATCH_TINT;
+    if (i < 0) return [0, 0, 0];
     // colour-blind: red-ish and green-ish become one (yellowish) bin
     if (this.colorBlind && i < 2) return [0.85, 0.75, 0.3];
     return BIN_REGIONS[i].tint;
@@ -357,13 +354,10 @@ export class LightScene implements Scene {
     const buf = this.wfBins.buffer;
     const reg = this.binRegion;
     if (reg.length !== buf.length) return;
-    const period = Math.round(14 * this.wfBins.ac.dpr), stripe = Math.round(3 * this.wfBins.ac.dpr);
-    const row = this.wfBins.rows;
     for (let x = 0; x < buf.length; x++) {
       const r = reg[x];
-      if (r === -2) buf[x] = 0;
-      else if (r === -1) buf[x] = (x + row) % period < stripe ? 0.45 : 0.06; // invisible: cross-hatch
-      else buf[x] = this.binVals[r];
+      // gaps and the infrared/ultraviolet space stay empty: the eye sends nothing for them
+      buf[x] = r < 0 ? 0 : this.binVals[r];
     }
     this.wfBins.push();
   }
@@ -387,6 +381,14 @@ export class LightScene implements Scene {
       label(this.colorBlind && r.lo >= 490 ? 'red/green' : r.label, x0, x1);
     }
     label('luma', lumaX, w);
+    // reserved, empty space: say so quietly (static, so it doesn't look like a signal)
+    ctx.font = `500 ${14 * dpr}px ${FONT}`;
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const ir1 = LIGHT_AXIS.x(nmToTHz(VISIBLE_NM[1]), w), uv0 = LIGHT_AXIS.x(nmToTHz(VISIBLE_NM[0]), w);
+    ctx.fillText('infrared: nothing', ir1 / 2, h / 2);
+    if (lumaX - uv0 > 90 * dpr) ctx.fillText('UV: nothing', (uv0 + lumaX) / 2, h / 2);
   }
 
   // ---------- "what it is": the input's power, as area, in its own colours ----------
@@ -448,25 +450,6 @@ export class LightScene implements Scene {
     }
   }
 
-  // ---------- colour rendering (CRI) ----------
-  private criCells: HTMLElement[] = [];
-  private buildCri() {
-    const grid = $(this.root, '.cri-grid');
-    for (const s of SURFACES) {
-      const cell = document.createElement('div');
-      cell.className = 'cri-cell';
-      cell.innerHTML = `<div class="patch"></div><span>${s.name}</span>`;
-      grid.appendChild(cell);
-      this.criCells.push(cell.querySelector('.patch') as HTMLElement);
-    }
-  }
-  private paintCri() {
-    SURFACES.forEach((s, i) => {
-      const c = surfaceColor(this.input, s.r);
-      this.criCells[i].style.background = css(this.colorBlind ? deuteranope(c) : c);
-    });
-  }
-
   // ---------- scene interface ----------
   activate(on: boolean) {
     this.active = on;
@@ -497,8 +480,7 @@ export class LightScene implements Scene {
         this.filterCurve.invalidate();
         this.setInput(Spectrum.line(dominantNm(POLY_RED())), 'twin');
       }
-      if (stage === 'cri') this.setInput(SUN, 'Sunlight');
-      if (stage === 'purple') this.setInput(Spectrum.line(700), null);
+      if (stage === 'purple' && this.sourceName !== 'purple') this.setInput(PURPLE(), 'purple');
     }
     this.recompute();
   }

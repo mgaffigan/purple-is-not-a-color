@@ -245,9 +245,9 @@ html .reveal-viewport {
    ===================================================================== */
 .sound .col.in {
   left: 40px;
-  top: 40px;
+  top: 76px;
   width: 1840px;
-  height: 1000px;
+  height: 964px;
 }
 .sound .scope-wrap {
   height: 110px;
@@ -373,9 +373,9 @@ html .reveal-viewport {
 /* subtractive layout */
 .sound .col.out {
   left: 1000px;
-  top: 40px;
+  top: 76px;
   width: 880px;
-  height: 1000px;
+  height: 964px;
   opacity: 0;
 }
 .sound .col.out .eq {
@@ -465,15 +465,15 @@ html .reveal-viewport {
    ===================================================================== */
 .light .col.in {
   left: 40px;
-  top: 40px;
+  top: 76px;
   width: 1840px;
-  height: 1000px;
+  height: 964px;
 }
 .light .col.out {
   left: 1000px;
-  top: 40px;
+  top: 76px;
   width: 880px;
-  height: 1000px;
+  height: 964px;
   opacity: 0;
 }
 .light .top-row {
@@ -566,7 +566,7 @@ html .reveal-viewport {
 }
 
 /* side-by-side stages */
-.light:is([data-stage='B'], [data-stage='C'], [data-stage='purple'], [data-stage='cri']) .col.in {
+.light:is([data-stage='B'], [data-stage='C'], [data-stage='purple']) .col.in {
   width: 880px;
 }
 .light:is([data-stage='B'], [data-stage='C'], [data-stage='purple']) :is(.col.out, .flow-arrow) {
@@ -593,42 +593,6 @@ html .reveal-viewport {
   visibility: hidden;
 }
 
-/* colour rendering */
-.light .cri {
-  position: absolute;
-  left: 1000px;
-  top: 40px;
-  width: 880px;
-  height: 1000px;
-  opacity: 0;
-  transition: opacity 0.6s;
-}
-.light[data-stage='cri'] .cri {
-  opacity: 1;
-}
-.cri-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  height: 100%;
-  align-content: center;
-}
-.cri-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: center;
-  font: 500 22px var(--font);
-  color: var(--muted);
-}
-.cri-cell .patch {
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: 20px;
-  transition: background 0.5s;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
 .light .cb-ind {
   position: absolute;
   top: 4px;
@@ -644,6 +608,26 @@ html .reveal-viewport {
 }
 
 /* ---------- section overlays ---------- */
+.reveal .slide-title {
+  position: absolute;
+  top: 18px;
+  left: 40px;
+  margin: 0;
+  font: 650 34px/1 var(--font);
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-align: left;
+  text-transform: none;
+}
+.light .flt button[data-paint] {
+  font-size: 14px;
+  padding: 6px 10px;
+}
+.light .flt button[data-paint]::before {
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+}
 .reveal .headline {
   position: absolute;
   left: 0;

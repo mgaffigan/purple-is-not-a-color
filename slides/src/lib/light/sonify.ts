@@ -1,10 +1,40 @@
 import * as Tone from 'tone';
 import { nmToAudioHz, VISIBLE_NM } from '../axis';
+import { qForOctaves } from '../audio/engine';
 import { LINE_SIGMA, NM0, type Spectrum } from './spectra';
 
 const LINE_AREA = LINE_SIGMA * Math.sqrt(2 * Math.PI);
 const MAX_LINES = 8;
-const BANK = 48;
+/** Broadband light → noise through this many band-pass filters across the visible octave. */
+const BANDS = 24;
+const BAND_Q = qForOctaves(1 / BANDS);
+/** Tone's noise is stereo with independent channels, each uniform in [-1, 1] (variance 1/3).
+ *  We fold it to mono (like the tones, identical in both speakers): averaging two
+ *  uncorrelated channels halves the variance. */
+const NOISE_VAR = 1 / 6;
+
+// ---- perceived loudness (simple critical-band model) ----
+const bark = (f: number) => 13 * Math.atan(0.00076 * f) + 3.5 * Math.atan((f / 7500) ** 2);
+/** Excitation spread over the Bark scale (steep below, shallow above, like masking),
+ *  then Stevens' power law per band. Relative units; only ratios matter. */
+function loudness(comps: { z: number; p: number }[]): number {
+  if (!comps.length) return 0;
+  let zmin = Infinity, zmax = -Infinity;
+  for (const c of comps) {
+    zmin = Math.min(zmin, c.z);
+    zmax = Math.max(zmax, c.z);
+  }
+  let N = 0;
+  for (let z = zmin - 2; z <= zmax + 4; z += 0.1) {
+    let E = 0;
+    for (const c of comps) {
+      const dz = z - c.z;
+      E += c.p * Math.pow(10, -(dz < 0 ? -27 * dz : 12 * dz) / 10);
+    }
+    N += Math.pow(E, 0.23) * 0.1;
+  }
+  return N;
+}
 
 /** Only what we can see makes a sound: invisible light stays silent. */
 function visibleWeight(nm: number) {
@@ -16,35 +46,62 @@ function visibleWeight(nm: number) {
   return 1;
 }
 
-interface Voice {
+interface LineVoice {
   osc: Tone.Oscillator;
   gain: Tone.Gain;
 }
+interface Band {
+  gain: Tone.Gain;
+  /** equivalent noise bandwidth of the band-pass, Hz */
+  enbw: number;
+  edges: [number, number]; // nm, long → short
+}
 
-/** Plays a light spectrum 40 octaves down: lines as pure tones, broadband as a dense cloud. */
+/**
+ * Plays a light spectrum exactly 40 octaves down, the same way the sound lab works:
+ * emission lines are pure sine tones; broadband light is white noise shaped by a
+ * band-pass filter bank (an EQ), so sunlight sounds like band-limited white noise.
+ *
+ * Loudness: the spectrum's *shape* follows the light, but its overall level is set so
+ * every spectrum is perceived about as loud as one pure line (power spread over several
+ * critical bands sounds louder than the same power in one tone). A compressor at the end
+ * catches transients while dragging or switching.
+ */
 export class Sonifier {
-  private lines: Voice[] = [];
-  private bank: Voice[] = [];
-  private bankEdges: number[] = [];
+  private lines: LineVoice[] = [];
+  private bands: Band[] = [];
   private bus: Tone.Gain;
+  private bandZ: number[] = [];
   muted = false;
   private enabled = true;
+  /** Level change applied to reach equal loudness (dB; negative = turned down). For inspection. */
+  loudnessCorrectionDb = 0;
+  /** peak amplitude of a single pure line (sets overall loudness) */
   level = 0.22;
 
   constructor(out: Tone.InputNode) {
-    this.bus = new Tone.Gain(1).connect(out);
-    const mk = (f: number): Voice => {
+    // Safety net only: steady spectra peak below about −10 dBFS and never touch it, so the
+    // loudness normalisation above stays exact. (Web Audio adds a fixed makeup gain.)
+    const comp = new Tone.Compressor({ threshold: -6, ratio: 4, knee: 3, attack: 0.01, release: 0.25 }).connect(out);
+    this.bus = new Tone.Gain(1).connect(comp);
+    for (let i = 0; i < MAX_LINES; i++) {
       const gain = new Tone.Gain(0).connect(this.bus);
-      const osc = new Tone.Oscillator(f, 'sine').connect(gain).start();
-      return { osc, gain };
-    };
-    for (let i = 0; i < MAX_LINES; i++) this.lines.push(mk(440));
+      const osc = new Tone.Oscillator(440, 'sine').connect(gain).start();
+      this.lines.push({ osc, gain });
+    }
     const [lo, hi] = VISIBLE_NM;
-    for (let i = 0; i <= BANK; i++) this.bankEdges.push(hi * Math.pow(lo / hi, i / BANK));
-    for (let i = 0; i < BANK; i++) {
-      const nm = Math.sqrt(this.bankEdges[i] * this.bankEdges[i + 1]);
-      const detune = Math.pow(2, ((Math.random() - 0.5) * 16) / 1200);
-      this.bank.push(mk(nmToAudioHz(nm) * detune));
+    for (let i = 0; i < BANDS; i++) {
+      const e0 = hi * Math.pow(lo / hi, i / BANDS);
+      const e1 = hi * Math.pow(lo / hi, (i + 1) / BANDS);
+      const f = nmToAudioHz(Math.sqrt(e0 * e1));
+      const gain = new Tone.Gain(0).connect(this.bus);
+      const native = gain.input as unknown as GainNode; // fold stereo noise to mono
+      native.channelCount = 1;
+      native.channelCountMode = 'explicit';
+      // independent noise per band, so band powers add (no coherent overlap between neighbours)
+      new Tone.Noise('white').start().connect(new Tone.Filter({ type: 'bandpass', frequency: f, Q: BAND_Q }).connect(gain));
+      this.bands.push({ gain, enbw: (Math.PI / 2) * (f / BAND_Q), edges: [e0, e1] });
+      this.bandZ.push(bark(f));
     }
   }
 
@@ -60,33 +117,48 @@ export class Sonifier {
   }
 
   set(spec: Spectrum | null) {
-    const lineAmps: { f: number; a: number }[] = [];
-    const bankAmps = new Array<number>(BANK).fill(0);
+    // visible power in each line and each band
+    const linePow: { f: number; p: number }[] = [];
+    const bandPow = new Array<number>(BANDS).fill(0);
     if (spec) {
       for (const l of spec.lines) {
-        const a = l.p * LINE_AREA * visibleWeight(l.nm);
-        if (a > 1e-4) lineAmps.push({ f: nmToAudioHz(l.nm), a });
+        const p = l.p * LINE_AREA * visibleWeight(l.nm);
+        if (p > 1e-6) linePow.push({ f: nmToAudioHz(l.nm), p });
       }
-      for (let i = 0; i < BANK; i++) {
-        const a0 = Math.ceil(this.bankEdges[i + 1]), a1 = Math.floor(this.bankEdges[i]);
+      this.bands.forEach((b, i) => {
         let s = 0;
-        for (let nm = a0; nm <= a1; nm++) s += (spec.broad[nm - NM0] ?? 0) * visibleWeight(nm);
-        bankAmps[i] = s;
-      }
+        for (let nm = Math.ceil(b.edges[1]); nm <= Math.floor(b.edges[0]); nm++)
+          s += (spec.broad[nm - NM0] ?? 0) * visibleWeight(nm);
+        bandPow[i] = s;
+      });
     }
-    lineAmps.sort((a, b) => b.a - a.a);
-    lineAmps.length = Math.min(lineAmps.length, MAX_LINES);
-    const total = lineAmps.reduce((s, l) => s + l.a, 0) + bankAmps.reduce((s, a) => s + a, 0);
-    const k = total > 1e-6 ? this.level / total : 0;
-    // Broadband energy is spread over many partials; give it a perceptual lift.
-    const kb = k * 2.2;
+    linePow.sort((a, b) => b.p - a.p);
+    linePow.length = Math.min(linePow.length, MAX_LINES);
+    const total = linePow.reduce((s, l) => s + l.p, 0) + bandPow.reduce((s, p) => s + p, 0);
+    // Start from equal power (the whole spectrum gets the power of one pure line)…
+    const target = (this.level * this.level) / 2;
+    const nyquist = Tone.getContext().sampleRate / 2;
+    const lineP = linePow.map((l) => (total > 0 ? (target * l.p) / total : 0));
+    const bandP = bandPow.map((p) => (total > 0 ? (target * p) / total : 0));
+    // …then scale to equal *loudness*: as loud as one pure line at 500 Hz.
+    const comps = [
+      ...linePow.map((l, i) => ({ z: bark(l.f), p: lineP[i] })),
+      ...this.bandZ.map((z, i) => ({ z, p: bandP[i] })),
+    ].filter((c) => c.p > 0);
+    const N = loudness(comps);
+    const ampScale = N > 0 ? Math.pow(loudness([{ z: bark(500), p: target }]) / N, 1 / (2 * 0.23)) : 0;
+    this.loudnessCorrectionDb = ampScale > 0 ? 20 * Math.log10(ampScale) : 0;
+
     this.lines.forEach((v, i) => {
-      const l = lineAmps[i];
-      if (l) {
+      const l = linePow[i];
+      if (l && total > 0) {
         v.osc.frequency.rampTo(l.f, 0.03);
-        v.gain.gain.rampTo(l.a * k, 0.08);
+        v.gain.gain.rampTo(Math.sqrt(2 * lineP[i]) * ampScale, 0.08); // sine power = a²/2
       } else v.gain.gain.rampTo(0, 0.08);
     });
-    this.bank.forEach((v, i) => v.gain.gain.rampTo(Math.min(0.05, bankAmps[i] * kb), 0.12));
+    this.bands.forEach((b, i) => {
+      const got = (NOISE_VAR * b.enbw) / nyquist; // power out of the filter at unity gain
+      b.gain.gain.rampTo(Math.sqrt(bandP[i] / got) * ampScale, 0.12);
+    });
   }
 }
