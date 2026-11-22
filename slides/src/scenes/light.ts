@@ -4,7 +4,7 @@ import {
   coneCurves, css, deuteranope, makeAdapter, xyzToSrgb, xyzToSrgbBright, type Vec3,
 } from '../lib/light/cie';
 import {
-  LINE_SIGMA, NM0, PAINTS, POLY_RED, PURPLE, ROYGBIV, SOURCES, Spectrum, TWIN_RED, lumaOf,
+  LINE_SIGMA, NM0, PAINTS, POLY_RED, PURPLE, ROYGBIV, SOURCES, Spectrum, lumaOf,
   transmission, type OpticalFilter,
 } from '../lib/light/spectra';
 import { Sonifier } from '../lib/light/sonify';
@@ -125,7 +125,7 @@ export class LightScene implements Scene {
   private active = false;
   private colorBlind = false;
 
-  private input = new Spectrum();
+  private input = Spectrum.line(650); // the generator starts on red
   private filter: OpticalFilter = { kind: 'none', nm: 530, width: 40, paint: 0 };
   private output = new Spectrum();
   private rowIn: Float32Array = new Float32Array(1);
@@ -313,7 +313,6 @@ export class LightScene implements Scene {
           else this.setInput(Spectrum.line(+d.nm), null);
         } else if (d.source) this.setInput(SOURCES[d.source](), d.source);
         else if (d.mix === 'poly') this.setInput(POLY_RED(), 'poly');
-        else if (d.mix === 'twin') this.setInput(TWIN_RED(), 'twin');
         else if (d.purple !== undefined) this.setInput(PURPLE(), 'purple');
         else if (d.paint) this.setFilter({ ...this.filter, kind: 'paint', paint: +d.paint });
         else if (d.filter) {
@@ -518,21 +517,9 @@ export class LightScene implements Scene {
     this.root.dataset.build = String(build);
     this.strip.showRegions = true;
 
-    if (stage !== prev) {
-      // sensible starting points for each step
-      if (stage === 'A' && this.input.empty) this.setInput(Spectrum.line(650), null);
-      if (stage === 'B') {
-        this.setInput(SUN, 'Sunlight');
-        this.filter = { kind: 'bandpass', nm: 530, width: 40, paint: 0 };
-        this.filterCurve.invalidate();
-      }
-      if (stage === 'C') {
-        this.filter = { kind: 'none', nm: 530, width: 40, paint: 0 };
-        this.filterCurve.invalidate();
-        this.setInput(TWIN_RED(), 'twin');
-      }
-      if (stage === 'purple' && this.sourceName !== 'purple') this.setInput(PURPLE(), 'purple');
-    }
+    // One generator across every light slide: its selection (and the filter) carries over
+    // unchanged. The only automatic change is the purple slide switching to Purple.
+    if (stage !== prev && stage === 'purple' && this.sourceName !== 'purple') this.setInput(PURPLE(), 'purple');
     this.recompute();
   }
 

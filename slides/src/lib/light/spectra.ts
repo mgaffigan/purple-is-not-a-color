@@ -149,19 +149,6 @@ export const SOURCES: Record<string, () => Spectrum> = Object.fromEntries(
   Object.entries(RAW_SOURCES).map(([k, f]) => [k, () => atLuma(f(), LAMP_LUMA)]),
 );
 
-/** Find non-negative weights for lines a,b so the mix matches a target's colour (least squares on XYZ). */
-export function matchMix(target: Spectrum, nms: number[]): Spectrum {
-  const t = target.xyz();
-  const cols = nms.map((nm) => Spectrum.line(nm).xyz());
-  // normal equations for 2 or 3 unknowns
-  const n = cols.length;
-  const A: number[][] = Array.from({ length: n }, (_, i) =>
-    Array.from({ length: n }, (_, j) => cols[i][0] * cols[j][0] + cols[i][1] * cols[j][1] + cols[i][2] * cols[j][2]),
-  );
-  const bvec = cols.map((c) => c[0] * t[0] + c[1] * t[1] + c[2] * t[2]);
-  const w = solve(A, bvec).map((x) => Math.max(0, x));
-  return Spectrum.lines(...nms.map((nm, i) => [nm, w[i]] as [number, number]));
-}
 function solve(A: number[][], b: number[]): number[] {
   const n = b.length;
   const M = A.map((r, i) => [...r, b[i]]);
@@ -181,28 +168,9 @@ function solve(A: number[][], b: number[]): number[] {
 /** Purple: exactly the Red and Violet buttons together (650 + 410 nm, each at its button's
  *  power), so its bins are exactly Red's plus Violet's. 650/410 ≈ 8:5, a minor sixth. */
 export const PURPLE = () => Spectrum.lines([650, 1], [410, 1]);
-/** A polychromatic red. Its pure twin is found with dominantNm(). */
+/** A polychromatic red: two lines that together look like one red. */
 export const POLY_RED = () => Spectrum.lines([620, 0.45], [690, 1]);
 
-const chroma = (s: Spectrum) => {
-  const x = s.xyz();
-  const t = x[0] + x[1] + x[2] || 1;
-  return [x[0] / t, x[1] / t];
-};
-/** The single wavelength whose colour is closest to this spectrum's. */
-export function dominantNm(s: Spectrum): number {
-  const t = chroma(s);
-  let best = 550, bd = Infinity;
-  for (let nm = 380; nm <= 720; nm += 0.25) {
-    const p = chroma(Spectrum.line(nm));
-    const d = Math.hypot(p[0] - t[0], p[1] - t[1]);
-    if (d < bd) {
-      bd = d;
-      best = nm;
-    }
-  }
-  return best;
-}
 
 // ---------- optical filters ----------
 export type FilterKind = 'none' | 'bandpass' | 'red' | 'green' | 'blue' | 'paint';
@@ -297,10 +265,3 @@ export const PAINTS: Paint[] = [
   { name: 'Lavender', r: (nm) => 0.12 + 0.45 * bump(nm, 440, 35) + 0.4 * logistic(nm, 640, 18) },
   ...SURFACES,
 ];
-
-/** The pure-wavelength twin of POLY_RED, matched in brightness too: a true metamer
- *  (identical in all three cone bins and in luma). */
-export const TWIN_RED = () => {
-  const poly = POLY_RED();
-  return atLuma(Spectrum.line(dominantNm(poly)), lumaOf(poly));
-};
