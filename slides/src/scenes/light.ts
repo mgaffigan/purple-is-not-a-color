@@ -76,6 +76,8 @@ function coneExcitation(s: Spectrum): Vec3 {
 }
 /** One fixed photoreceptor-like compression (Naka–Rushton), 1 → 1, so dim signals stay visible. */
 const compress = (x: number) => Math.min(1, (x * 1.35) / (x + 0.35));
+/** Soft edge of each bin's band, as a fraction of the bin's half-width. */
+const EDGE = 0.04;
 
 /** How a surface with reflectance r looks under this light: relative to the
  *  light's own white, with partial adaptation (the eye adjusts, but not fully). */
@@ -92,7 +94,6 @@ const BIN_REGIONS: { lo: number; hi: number; label: string; tint: Vec3 }[] = [
   { lo: 490, hi: 575, label: 'green-ish', tint: [0.25, 0.82, 0.38] },
   { lo: VISIBLE_NM[0], hi: 490, label: 'blue-ish', tint: [0.3, 0.45, 1] },
 ];
-const LUMA_TINT: Vec3 = [0.9, 0.9, 0.9];
 const LUMA_PX = 80; // css px for the luma column at the right edge
 const LINE_AREA = LINE_SIGMA * Math.sqrt(2 * Math.PI);
 
@@ -112,9 +113,11 @@ export class LightScene implements Scene {
   private itis: AutoCanvas;
   private wfBins: Waterfall;
   private binLabels: AutoCanvas;
-  private binRegion = new Int8Array(1); // per column: -2 gap, -1 hatch, 0..2 bins, 3 luma
+  private binRegion = new Int8Array(1); // per column: -2 gap, -1 invisible, 0..2 bins, 3 luma
+  private binDist = new Float32Array(1); // per column: distance from its bin's centre / half-width
+  private binRow = new Float32Array(1);
   private binVals = [0, 0, 0, 0];
-  private binsEl: HTMLCanvasElement;
+  private binsEl!: HTMLCanvasElement;
   private swIn: HTMLElement;
   private swOut: HTMLElement;
   private stage: Stage | '' = '';
@@ -263,9 +266,11 @@ export class LightScene implements Scene {
     const out = isPaint ? surfaceColor(this.input, PAINTS[this.filter.paint].r) : perceived(this.output);
     this.swOut.style.background = css(fix(out));
     // what the brain gets: three colour bins + brightness
-    const b = coneExcitation(this.output).map(compress);
-    this.binVals = this.colorBlind ? [(b[0] + b[1]) / 2, (b[0] + b[1]) / 2, b[2], 0] : [b[0], b[1], b[2], 0];
-    this.binVals[3] = compress(lumaOf(this.output));
+    const e = coneExcitation(this.output);
+    const raw = this.colorBlind ? [(e[0] + e[1]) / 2, (e[0] + e[1]) / 2, e[2]] : [e[0], e[1], e[2]];
+    raw.push(lumaOf(this.output));
+    this.binVals = raw.map(compress);
+    this.buildBinRow();
   }
 
   private updateSound() {
@@ -341,13 +346,13 @@ export class LightScene implements Scene {
   }
 
   // ---------- bins: a waterfall with very unusual binning ----------
+  /** Each bin keeps its own hue (luma is grey); colour-blind merges red-ish and green-ish. */
   private binTint(frac: number): Vec3 {
     // (called while the waterfall is being constructed, so use the element's size)
-    if (frac >= 1 - LUMA_PX / Math.max(1, this.binsEl.offsetWidth)) return LUMA_TINT;
+    if (frac >= 1 - LUMA_PX / Math.max(1, this.binsEl.offsetWidth)) return [0.9, 0.9, 0.9];
     const nm = fracToNm(frac);
     const i = BIN_REGIONS.findIndex((r) => nm >= r.lo && nm < r.hi);
     if (i < 0) return [0, 0, 0];
-    // colour-blind: red-ish and green-ish become one (yellowish) bin
     if (this.colorBlind && i < 2) return [0.85, 0.75, 0.3];
     return BIN_REGIONS[i].tint;
   }
@@ -365,40 +370,66 @@ export class LightScene implements Scene {
     // thin dark gaps between bins make the binning obvious
     const gap = Math.max(2, Math.round(3 * this.wfBins.ac.dpr));
     for (let x = w - 1; x > 0; x--) if (reg[x] !== reg[x - 1] && reg[x] !== -2) for (let k = 0; k < gap && x + k < w; k++) reg[x + k] = -2;
+    // each bin's centre and half-width
+    const lo = [w, w, w, w], hi = [-1, -1, -1, -1];
+    for (let x = 0; x < w; x++) if (reg[x] >= 0) { lo[reg[x]] = Math.min(lo[reg[x]], x); hi[reg[x]] = Math.max(hi[reg[x]], x); }
+    const dist = new Float32Array(w);
+    for (let x = 0; x < w; x++) {
+      const r = reg[x];
+      if (r < 0) continue;
+      const c = (lo[r] + hi[r]) / 2, half = Math.max(1, (hi[r] - lo[r]) / 2);
+      dist[x] = Math.abs(x - c) / half;
+    }
     this.binRegion = reg;
+    this.binDist = dist;
+    this.binRow = new Float32Array(w);
+    this.buildBinRow();
     this.drawBinLabels();
   }
-  private fillBinRow() {
-    const buf = this.wfBins.buffer;
-    const reg = this.binRegion;
-    if (reg.length !== buf.length) return;
-    for (let x = 0; x < buf.length; x++) {
+  /** One waterfall row from the current bin levels (only recomputed when they change). */
+  private buildBinRow() {
+    const row = this.binRow, reg = this.binRegion, dist = this.binDist;
+    if (row.length !== reg.length) return;
+    for (let x = 0; x < row.length; x++) {
       const r = reg[x];
-      // gaps and the infrared/ultraviolet space stay empty: the eye sends nothing for them
-      buf[x] = r < 0 ? 0 : this.binVals[r];
+      if (r < 0) {
+        row[x] = 0; // gaps and the infrared/ultraviolet space: the eye sends nothing
+        continue;
+      }
+      // brightness = level, and the band's width = level too (centred in its bin)
+      const v = this.binVals[r];
+      const edge = Math.min(1, Math.max(0, (v - dist[x]) / EDGE + 0.5));
+      row[x] = v * edge;
     }
+  }
+  private fillBinRow() {
+    if (this.binRow.length !== this.wfBins.buffer.length) return;
+    this.wfBins.buffer.set(this.binRow);
     this.wfBins.push();
   }
   private drawBinLabels() {
     const { ctx, w, h, dpr } = this.binLabels;
     ctx.clearRect(0, 0, w, h);
     const lumaX = w - LUMA_PX * dpr;
-    const label = (text: string, x0: number, x1: number) => {
+    const label = (text: string, x0: number, x1: number, tint: Vec3) => {
       ctx.font = `600 ${15 * dpr}px ${FONT}`;
-      const tw = ctx.measureText(text).width + 14 * dpr;
-      const cx = (x0 + x1) / 2;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(cx - tw / 2, h - 34 * dpr, tw, 24 * dpr);
+      const sw = 12 * dpr, tw = ctx.measureText(text).width + 22 * dpr + sw;
+      const cx = (x0 + x1) / 2, left = cx - tw / 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(left, h - 34 * dpr, tw, 24 * dpr);
+      ctx.fillStyle = css(tint); // colour tag: which bin this is
+      ctx.fillRect(left + 7 * dpr, h - 28 * dpr, sw, sw);
       ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
+      ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(text, cx, h - 22 * dpr);
+      ctx.fillText(text, left + 13 * dpr + sw, h - 22 * dpr);
     };
     for (const r of BIN_REGIONS) {
       const x0 = LIGHT_AXIS.x(nmToTHz(r.hi), w), x1 = LIGHT_AXIS.x(nmToTHz(r.lo), w);
-      label(this.colorBlind && r.lo >= 490 ? 'red/green' : r.label, x0, x1);
+      const merged = this.colorBlind && r.lo >= 490;
+      label(merged ? 'red/green' : r.label, x0, x1, merged ? [0.85, 0.75, 0.3] : r.tint);
     }
-    label('luma', lumaX, w);
+    label('luma', lumaX, w, [0.9, 0.9, 0.9]);
     // reserved, empty space: say so quietly (static, so it doesn't look like a signal)
     ctx.font = `500 ${14 * dpr}px ${FONT}`;
     ctx.fillStyle = 'rgba(255,255,255,0.28)';
@@ -544,7 +575,7 @@ export class LightScene implements Scene {
       this.colorBlind = !this.colorBlind;
       this.root.classList.toggle('cb', this.colorBlind);
       this.wfBins.retint();
-      this.layoutBins();
+      this.drawBinLabels();
       this.recompute();
       return true;
     }
